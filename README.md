@@ -9,6 +9,7 @@ Protótipo web em **Python + Django** com backend e frontend integrados (templat
 - Um **botão de Logout funcional**.
 
 O código mitiga ativamente vulnerabilidades do [OWASP Top 10:2025](https://owasp.org/Top10/2025/).
+**Inclui** Dockerização com Nginx HTTPS, Makefile e **Terraform** para deploy automático na Oracle Cloud (Always Free tier).
 
 ---
 
@@ -178,28 +179,64 @@ O script `nginx/generate-certs.sh` gera um par autoassinado (`localhost.crt` /
 
 ---
 
-## 🛠️ Makefile
+## 🛠️ Makefile (Estrutura Modular)
 
-O `Makefile` reúne os comandos do dia a dia. Rode `make help` para a lista completa.
+O `Makefile` foi modularizado seguindo boas práticas com arquivos organizados no diretório `make/`. 
+Rode `make help` para ver todos os **100+ comandos** disponíveis.
 
-| Alvo | O que faz |
-|------|-----------|
-| `make setup` | Cria o venv, instala dependências, cria o `.env`, migra e cria o usuário demo |
-| `make install` | Cria o venv e instala as dependências |
-| `make run` | Sobe o servidor de desenvolvimento (`HOST`/`PORT` configuráveis) |
-| `make test` | Roda a suíte de testes |
-| `make check` | Roda `manage.py check --deploy` |
-| `make migrate` / `make makemigrations` | Migrações do banco |
-| `make seed` / `make superuser` | Cria usuário demo / superusuário |
-| `make secret-key` | Gera uma nova `SECRET_KEY` |
-| `make certs` | Gera o certificado TLS autoassinado |
-| `make up` / `make up-d` | Sobe o stack Docker (foreground / background) |
-| `make build` / `make down` / `make down-v` | Build / parar / parar+remover volumes |
-| `make logs` / `make ps` | Logs / status dos containers |
-| `make docker-test` / `make docker-shell` | Testes / shell dentro do container |
-| `make clean` / `make clean-all` | Limpa caches / também venv e estáticos |
+### Estrutura Modular
 
-> ⚠️ `make down-v` e `make clean-all` são destrutivos (removem volumes/banco e o venv).
+```
+.
+├── Makefile                    # Arquivo principal (includes)
+├── make/                       # Módulos Makefile (.mk)
+│   ├── common.mk              # Configurações e variáveis compartilhadas
+│   ├── help.mk                # Meta-comandos (help)
+│   ├── local.mk               # Ambiente local (virtualenv)
+│   ├── docker.mk              # Docker + Nginx (HTTPS)
+│   ├── vagrant.mk             # Vagrant (testes locais)
+│   ├── test.mk                # Testes integrados
+│   └── clean.mk               # Limpeza
+└── ...
+```
+
+### Comandos Principais
+
+| Categoria | Comandos Exemplo | Descrição |
+|-----------|------------------|-----------|
+| **Local** | `make setup`, `make run`, `make test` | Ambiente virtualenv, Django local |
+| **Docker** | `make up-d`, `make docker-test`, `make logs` | Containers com Nginx HTTPS |
+| **Vagrant** | `make vagrant-up`, `make vagrant-access`, `make vagrant-docker-test` | VM de testes local |
+| **Testes** | `make test-matrix`, `make test-all` | Testes multi-ambiente |
+| **Utilidades** | `make secret-key`, `make certs`, `make check` | Geração de chaves, certificados, verificação |
+| **Limpeza** | `make clean`, `make clean-all` | Remoção de caches e arquivos temporários |
+
+### Fluxos de Trabalho Comuns
+
+```bash
+# Desenvolvimento local
+make setup      # Prepara ambiente
+make run        # Sobe servidor
+make test       # Roda testes
+
+# Docker local
+make up-d       # Sobe stack em background
+make docker-test # Testes em containers
+
+# Testes Vagrant
+make vagrant-up      # Inicia VM de testes
+make vagrant-access  # Mostra URLs de acesso
+make test-matrix     # Roda testes em todos ambientes
+
+# Produção
+make certs      # Gera certificados TLS
+make check      # Verifica configuração de produção
+```
+
+> **Dica**: Use `make help` para ver a lista completa de comandos (100+).
+> **Aviso**: `make down-v` e `make clean-all` são destrutivos (removem volumes/banco e virtualenv).
+
+Mais detalhes sobre a estrutura modular em [make/README.md](./make/README.md).
 
 ---
 
@@ -230,12 +267,31 @@ O `Makefile` reúne os comandos do dia a dia. Rode `make help` para a lista comp
 ├── Dockerfile              # Imagem da app (Django + Gunicorn)
 ├── docker-compose.yml      # Orquestra web + nginx
 ├── .dockerignore
-├── Makefile                # Atalhos (make help lista os alvos)
+├── Makefile                # Interface principal (estrutura modular)
+├── make/                   # Módulos Makefile (.mk) - boas práticas
+│   ├── common.mk          # Configurações e variáveis compartilhadas
+│   ├── help.mk            # Meta-comandos (help)
+│   ├── local.mk           # Ambiente local (virtualenv)
+│   ├── docker.mk          # Docker + Nginx (HTTPS)
+│   ├── vagrant.mk         # Vagrant (testes locais)
+│   ├── test.mk            # Testes integrados
+│   └── clean.mk           # Limpeza
 ├── requirements.txt
+├── scripts/                # Scripts utilitários centralizados
+│   ├── install-gitleaks.sh # Instalação do gitleaks
+│   └── README.md           # Documentação dos scripts
 ├── .env.example            # Modelo de variáveis (versionado)
 ├── .env                    # Segredos locais (NÃO versionado)
 ├── .env.docker.example     # Modelo de env do Docker (versionado)
 └── .env.docker             # Segredos do Docker (NÃO versionado)
+├── vagrant-test/           # Ambiente de testes locais (Vagrant)
+│   ├── Vagrantfile         # Configuração da VM (1 vCPU, 2GB RAM, 10GB disco)
+│   ├── scripts/            # Scripts de provisionamento e otimização
+│   ├── bootstrap.sh        # Inicialização rápida
+│   └── README.md           # Instruções
+└── terraform/              # Deploy na Oracle Cloud (OCI) - Always Free
+    ├── modules/            # Módulos reutilizáveis (network, compute, cloud-init)
+    └── environments/       # Ambientes hmg/prd com workspaces
 ```
 
 ---
@@ -344,6 +400,159 @@ As **3 categorias mínimas obrigatórias** atendidas (e comprovadas por teste) s
 
 Adicionalmente, o projeto também cobre **A02:2025 (Security Misconfiguration)**,
 **A04:2025 (Cryptographic Failures)** e **A09:2025 (Security Logging and Alerting Failures)**.
+
+---
+
+## ☁️ Deploy na Oracle Cloud (OCI) com Terraform Modular
+
+O projeto inclui uma configuração **Terraform modular** com workspaces **hmg** (homologação) e **prd** (produção) para provisionar instâncias **Always Free**
+na Oracle Cloud Infrastructure (OCI). Cada ambiente instala Docker automaticamente e sobe o stack com HTTPS.
+
+### Estrutura modular
+
+Veja a pasta [`terraform/`](./terraform/) para o código completo:
+
+```
+terraform/
+├── modules/                     # Módulos reutilizáveis
+│   ├── network/                 # VCN, subnet, security list, internet gateway
+│   ├── compute/                 # Instância A1, data source Ubuntu ARM
+│   └── cloud-init/              # Geração do user_data (cloud-init)
+├── environments/                # Ambientes separados
+│   ├── hmg/                     # Homologação
+│   └── prd/                     # Produção
+├── provider.tf                  # Provider OCI comum
+└── versions.tf                  # Versões do Terraform
+```
+
+### Como usar (escolha um ambiente)
+
+1. **Crie uma conta OCI** e gere as credenciais API (tenancy, user, fingerprint, chave privada).
+2. **Fork** este repositório (ou atualize a URL em `git_repo_url`).
+3. **Escolha o ambiente**:
+   - **Homologação (hmg)**: CIDRs `10.0.0.0/16` (VCN), `10.0.1.0/24` (subnet)
+   - **Produção (prd)**: CIDRs `10.10.0.0/16` (VCN), `10.10.1.0/24` (subnet)
+4. **Copie** o arquivo de exemplo de variáveis:
+
+```bash
+cd terraform/environments/hmg   # ou prd
+cp terraform.tfvars.example terraform.tfvars
+```
+
+5. **Preencha** `terraform.tfvars` com suas credenciais OCI, chave pública SSH e URL do repositório.
+6. **Execute**:
+
+```bash
+terraform init
+terraform plan
+terraform apply -auto-approve
+```
+
+O cloud‑init levará **3‑5 minutos** para instalar Docker, clonar o repositório, gerar o
+certificado autoassinado e subir o stack. Após a conclusão, acesse **https://SEU_IP/**.
+
+### Recursos do Always Free (2026)
+
+- **VM.Standard.A1.Flex** (Ampere ARM): até **2 OCPUs** e **12 GB RAM** por instância.
+- **200 GB** de armazenamento de block volume.
+- **2 IPs públicos** por tenancy.
+- **10 TB/mês** de tráfego de saída.
+
+A configuração padrão usa **2 OCPUs** e **8 GB RAM**, dentro dos limites gratuitos.
+
+Mais detalhes em [terraform/README.md](./terraform/README.md).
+
+---
+
+## 🖥️ Testes Locais com Vagrant (Emulação do OCI)
+
+Para testar a infraestrutura localmente antes de implantar na OCI, o projeto inclui
+um ambiente **Vagrant** que emula a VM OCI com as mesmas configurações de segurança.
+
+### Estrutura
+
+```
+vagrant-test/
+├── Vagrantfile                    # Configuração da VM (1 vCPU, 2GB RAM, 10GB disco)
+├── scripts/
+│   ├── resource_optimization.sh   # Otimizações para recursos limitados
+│   ├── security_hardening.sh     # Hardening idêntico ao cloud-init OCI
+│   └── deploy_app.sh             # Deploy da aplicação Django+Nginx com limites
+├── bootstrap.sh                   # Script de inicialização rápido
+└── README.md                      # Instruções detalhadas
+```
+
+### Como usar
+
+1. **Instale os pré-requisitos**:
+   ```bash
+   # Ubuntu/Debian
+   sudo apt install vagrant virtualbox
+   ```
+
+2. **Inicie o ambiente** (via Makefile recomendado):
+   ```bash
+   make vagrant-up
+   ```
+
+3. **Acesse a aplicação**:
+   ```bash
+   make vagrant-access  # Mostra URLs automaticamente
+   ```
+   - HTTP: `http://<IP_DA_VM>/`
+   - HTTPS: `https://<IP_DA_VM>/` (ignore o aviso do certificado autoassinado)
+
+4. **Credenciais**: `aluno` / `SenhaForte2025!`
+
+### Benefícios
+
+- **Teste local**: Valide toda a infraestrutura antes de subir na OCI
+- **Recursos otimizados**: 1 vCPU, 2GB RAM, 10GB disco (leve para máquinas modestas)
+- **Segurança idêntica**: Mesmo hardening SSH, UFW, fail2ban, atualizações automáticas
+- **Custo zero**: Testes locais sem consumir recursos do Always Free tier
+- **Desenvolvimento**: Ambiente consistente e reproduzível para toda a equipe
+- **Otimizações**: Swap, limites Docker, remoção de pacotes não essenciais
+
+Mais detalhes em [vagrant-test/README.md](./vagrant-test/README.md).
+
+---
+
+## 🎯 Melhorias e Recursos Adicionais
+
+O projeto evoluiu para incluir recursos avançados de DevOps e segurança:
+
+### **Infraestrutura como Código (IaC)**
+- **Terraform modular** com workspaces hmg/prd
+- **Módulos reutilizáveis**: network, compute, cloud-init
+- **Ambientes isolados**: homologação e produção separados
+- **Oracle Cloud Always Free**: configuração otimizada para recursos gratuitos
+
+### **Automação e DevOps**
+- **Makefile modular** (boas práticas): 7 módulos `.mk` no diretório `make/`
+- **100+ comandos** via `make help` para todas as operações
+- **Testes multi-ambiente**: local, Docker, Vagrant com `make test-matrix`
+- **Fluxos de trabalho unificados**: desenvolvimento → teste → produção
+
+### **Segurança Aprimorada**
+- **Hardening completo**: SSH, UFW, fail2ban, atualizações automáticas
+- **Cloud-init seguro**: configurações idênticas entre Vagrant e OCI
+- **OWASP Top 10:2025**: 5 categorias mitigadas (3 obrigatórias + 2 bônus)
+- **Monitoramento**: verificações periódicas de segurança
+
+### **Ambientes de Teste**
+- **Vagrant otimizado**: 1 vCPU, 2GB RAM, 10GB disco (máquinas modestas)
+- **Otimizações específicas**: swap, limites Docker, remoção de pacotes não essenciais
+- **Testes locais completos**: infraestrutura idêntica à OCI sem custos
+
+### **Documentação Completa**
+- **README principal**: visão geral e guias de uso - [README.md](./README.md)
+- **Documentação integrada**: visão completa das integrações - [docs/DOCUMENTACAO-INTEGRADA.md](./docs/DOCUMENTACAO-INTEGRADA.md)
+- **Documentação de segurança**: hooks Git e gitleaks - [docs/SECURITY-HOOKS.md](./docs/SECURITY-HOOKS.md)
+- **Changelog**: histórico de atualizações - [docs/DOCUMENTACAO-CHANGELOG.md](./docs/DOCUMENTACAO-CHANGELOG.md)
+- **Documentação especializada**:
+  - `make/README.md` → Estrutura modular do Makefile - [make/README.md](./make/README.md)
+  - `vagrant-test/README.md` → Ambiente de testes local - [vagrant-test/README.md](./vagrant-test/README.md)
+  - `terraform/README.md` → Deploy na Oracle Cloud - [terraform/README.md](./terraform/README.md)
 
 ---
 

@@ -1,0 +1,27 @@
+# =====================================================================
+# Makefile — Exemplo de estrutura modular (boas práticas)
+# =====================================================================
+# Este é um exemplo de como estruturar um Makefile modular seguindo boas práticas
+
+.DEFAULT_GOAL := help
+
+# Inclui módulos básicos (necessários)
+include make/common.mk   # Configurações e variáveis compartilhadas
+include make/help.mk     # Meta-comandos (help)
+
+# Inclui módulos funcionais (opcionais - inclua conforme necessidade)
+include make/local.mk    # Ambiente local (virtualenv)
+include make/docker.mk   # Docker + Nginx (HTTPS)
+include make/vagrant.mk  # Vagrant (testes locais)
+include make/test.mk     # Testes integrados
+include make/clean.mk    # Limpeza
+
+# Para adicionar novos módulos:
+# 1. Crie o arquivo em make/nome.mk
+# 2. Adicione: include make/nome.mk
+# 3. Implemente targets com documentação (##)
+
+# Exemplo de módulo adicional:
+# include make/deploy.mk    # Deploy em produção
+# include make/docs.mk      # Geração de documentação
+# include make/lint.mk      # Linting e formatação
