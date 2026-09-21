@@ -27,6 +27,21 @@ O código mitiga ativamente vulnerabilidades do [OWASP Top 10:2025](https://owas
 
 ## Como executar
 
+O projeto inclui um **Makefile** que encapsula os comandos mais comuns.
+Rode `make help` para ver todos os alvos disponíveis.
+
+### Opção A — com Makefile (recomendado)
+
+```bash
+make setup    # cria o venv, instala deps, cria o .env, migra e cria o usuário demo
+make run      # sobe o servidor de desenvolvimento
+```
+
+> Depois de `make setup`, gere uma SECRET_KEY com `make secret-key` e cole no `.env`.
+> Ajuste o `.env` para desenvolvimento local (veja os comentários no arquivo).
+
+### Opção B — passo a passo (manual)
+
 ```bash
 # 1. Criar e ativar o ambiente virtual
 python3 -m venv .venv
@@ -57,6 +72,8 @@ python manage.py runserver
 
 Acesse http://127.0.0.1:8000/ — você será redirecionado para a tela de login.
 
+> A porta do `make run` é configurável: `make run PORT=9000 HOST=0.0.0.0`.
+
 ### Credenciais de demonstração
 
 | Usuário | Senha            |
@@ -69,7 +86,7 @@ Acesse http://127.0.0.1:8000/ — você será redirecionado para a tela de login
 ### Rodar os testes
 
 ```bash
-python manage.py test
+make test          # ou: python manage.py test
 ```
 
 São 11 testes automatizados cobrindo o fluxo de autenticação e as mitigações de segurança descritas abaixo.
@@ -98,6 +115,16 @@ Navegador ──HTTP(80)───▶ Nginx ──301──▶ HTTPS
 
 ### Passos
 
+Com o Makefile, um único comando sobe todo o stack (o certificado é gerado
+automaticamente antes de iniciar):
+
+```bash
+make docker-env   # cria o .env.docker a partir do exemplo (defina a SECRET_KEY)
+make up           # gera o certificado + build + sobe web e nginx
+```
+
+Ou, de forma manual:
+
 ```bash
 # 1. Gerar o certificado TLS autoassinado (desenvolvimento)
 sh nginx/generate-certs.sh localhost
@@ -122,11 +149,24 @@ criação do usuário de demonstração (`aluno` / `SenhaForte2025!`).
 
 ### Comandos úteis
 
+Com o Makefile:
+
 ```bash
-docker compose logs -f            # acompanhar logs
-docker compose exec web python manage.py test   # rodar testes no container
-docker compose down               # parar e remover containers
-docker compose down -v            # também remove volumes (banco e estáticos)
+make up-d          # sobe o stack em background (detached)
+make logs          # acompanhar logs
+make ps            # status dos containers
+make docker-test   # rodar os testes dentro do container
+make down          # parar e remover containers
+make down-v        # também remove volumes (banco e estáticos)
+```
+
+Equivalentes diretos com `docker compose`:
+
+```bash
+docker compose logs -f
+docker compose exec web python manage.py test
+docker compose down
+docker compose down -v            # remove volumes (banco e estáticos)
 ```
 
 ### Certificado HTTPS
@@ -135,6 +175,31 @@ O script `nginx/generate-certs.sh` gera um par autoassinado (`localhost.crt` /
 `localhost.key`, RSA 2048, válido por 365 dias, com SAN para `localhost` e
 `127.0.0.1`) em `nginx/certs/`, montado no container do Nginx. Esses arquivos
 **não são versionados** (ver `.gitignore`).
+
+---
+
+## 🛠️ Makefile
+
+O `Makefile` reúne os comandos do dia a dia. Rode `make help` para a lista completa.
+
+| Alvo | O que faz |
+|------|-----------|
+| `make setup` | Cria o venv, instala dependências, cria o `.env`, migra e cria o usuário demo |
+| `make install` | Cria o venv e instala as dependências |
+| `make run` | Sobe o servidor de desenvolvimento (`HOST`/`PORT` configuráveis) |
+| `make test` | Roda a suíte de testes |
+| `make check` | Roda `manage.py check --deploy` |
+| `make migrate` / `make makemigrations` | Migrações do banco |
+| `make seed` / `make superuser` | Cria usuário demo / superusuário |
+| `make secret-key` | Gera uma nova `SECRET_KEY` |
+| `make certs` | Gera o certificado TLS autoassinado |
+| `make up` / `make up-d` | Sobe o stack Docker (foreground / background) |
+| `make build` / `make down` / `make down-v` | Build / parar / parar+remover volumes |
+| `make logs` / `make ps` | Logs / status dos containers |
+| `make docker-test` / `make docker-shell` | Testes / shell dentro do container |
+| `make clean` / `make clean-all` | Limpa caches / também venv e estáticos |
+
+> ⚠️ `make down-v` e `make clean-all` são destrutivos (removem volumes/banco e o venv).
 
 ---
 
@@ -165,6 +230,7 @@ O script `nginx/generate-certs.sh` gera um par autoassinado (`localhost.crt` /
 ├── Dockerfile              # Imagem da app (Django + Gunicorn)
 ├── docker-compose.yml      # Orquestra web + nginx
 ├── .dockerignore
+├── Makefile                # Atalhos (make help lista os alvos)
 ├── requirements.txt
 ├── .env.example            # Modelo de variáveis (versionado)
 ├── .env                    # Segredos locais (NÃO versionado)
