@@ -238,3 +238,20 @@ nginx/certs/
 
 # macOS
 .DS_Store
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+terraform/environments/hmg/.terraform/
+terraform/environments/prd/.terraform/
+terraform/backup/
+
+# Vagrant
+.vagrant/
+vagrant-test/.vagrant/
+*.log
+
+# Makefile temporários
+make/*.tmp
+make/*.cache
