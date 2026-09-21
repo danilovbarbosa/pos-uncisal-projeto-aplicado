@@ -1,0 +1,29 @@
+# Ambiente e artefatos locais
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Segredos e dados locais (montados/gerados em runtime)
+.env
+db.sqlite3
+db.sqlite3-*
+*.log
+staticfiles/
+data/
+
+# Controle de versão e IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Certificados locais (gerados via script, montados no nginx)
+nginx/certs/

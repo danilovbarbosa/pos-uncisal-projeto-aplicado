@@ -1,0 +1,47 @@
+# =====================================================================
+# Orquestração: aplicação Django (Gunicorn) + Nginx (proxy reverso HTTPS)
+# =====================================================================
+
+services:
+  web:
+    build: .
+    image: pos-uncisal-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Banco SQLite em volume persistente.
+      DJANGO_DB_PATH: /app/data/db.sqlite3
+    volumes:
+      # Estáticos coletados pelo web e servidos pelo Nginx.
+      - static_volume:/app/staticfiles
+      # Banco de dados persistente.
+      - data_volume:/app/data
+    expose:
+      - "8000"
+    networks:
+      - appnet
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      # Mesmo volume de estáticos do web, em modo leitura.
+      - static_volume:/app/staticfiles:ro
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge
+
+volumes:
+  static_volume:
+  data_volume:
