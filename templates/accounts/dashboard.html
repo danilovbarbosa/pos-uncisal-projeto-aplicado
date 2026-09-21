@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Área interna — Portal Seguro{% endblock %}
+
+{% block content %}
+  <div class="topbar">
+    <h1>Área interna</h1>
+    {# OWASP A01/A07 — logout via POST com token CSRF #}
+    <form method="post" action="{% url 'accounts:logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="logout-btn">Sair</button>
+    </form>
+  </div>
+
+  {# {{ usuario.username }} é escapado automaticamente pelo template engine (A05 — XSS) #}
+  <p>Olá, <strong>{{ usuario.get_username }}</strong>. Você está autenticado.</p>
+  <p class="muted">
+    Esta página só é acessível após o login. Se a sessão expirar ou você
+    clicar em <em>Sair</em>, será redirecionado para a tela de login.
+  </p>
+
+  <ul class="muted">
+    <li>Último acesso: {{ usuario.last_login|default:"—" }}</li>
+    <li>Permissões de staff: {{ usuario.is_staff|yesno:"sim,não" }}</li>
+  </ul>
+{% endblock %}

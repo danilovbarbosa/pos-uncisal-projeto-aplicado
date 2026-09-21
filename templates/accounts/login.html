@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Login — Portal Seguro{% endblock %}
+
+{% block content %}
+  <h1>Acessar o portal</h1>
+  <p class="muted">Entre com suas credenciais para acessar a área interna.</p>
+
+  {# OWASP A01:2025 — token CSRF obrigatório no formulário POST #}
+  <form method="post" action="{% url 'accounts:login' %}" autocomplete="off" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <ul class="errors">
+        {% for error in form.non_field_errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <label for="{{ form.username.id_for_label }}">Usuário</label>
+    <input type="text"
+           name="{{ form.username.html_name }}"
+           id="{{ form.username.id_for_label }}"
+           maxlength="150"
+           autocapitalize="none"
+           spellcheck="false"
+           required
+           value="{{ form.username.value|default:'' }}">
+    {% for error in form.username.errors %}
+      <ul class="errors"><li>{{ error }}</li></ul>
+    {% endfor %}
+
+    <label for="{{ form.password.id_for_label }}">Senha</label>
+    <input type="password"
+           name="{{ form.password.html_name }}"
+           id="{{ form.password.id_for_label }}"
+           autocomplete="current-password"
+           required>
+    {% for error in form.password.errors %}
+      <ul class="errors"><li>{{ error }}</li></ul>
+    {% endfor %}
+
+    {# Preserva o destino seguro do redirecionamento pós-login #}
+    <input type="hidden" name="next" value="{{ next }}">
+
+    <button type="submit">Entrar</button>
+  </form>
+{% endblock %}
