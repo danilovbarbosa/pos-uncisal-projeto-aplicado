@@ -216,3 +216,25 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# =====================================================================
+# Específico deste projeto (Django + Docker + Nginx)
+# =====================================================================
+
+# Segredos de ambiente (mantenha apenas os .example versionados)
+.env.docker
+
+# Arquivos estáticos coletados (collectstatic / STATIC_ROOT)
+staticfiles/
+
+# Dados persistentes montados em volume Docker
+data/
+
+# Certificados TLS locais/autoassinados (gerados via nginx/generate-certs.sh)
+nginx/certs/
+*.pem
+*.crt
+*.key
+
+# macOS
+.DS_Store
