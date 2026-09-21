@@ -1,0 +1,275 @@
+#cloud-config
+# =====================================================================
+# Cloud‑init para deploy do projeto Django + Nginx HTTPS na OCI
+# =====================================================================
+package_update: true
+package_upgrade: true
+
+packages:
+  - git
+  - docker.io
+  - docker-compose-plugin
+  - fail2ban
+  - ufw
+  - unattended-upgrades
+
+groups:
+  - docker
+
+system_info:
+  default_user:
+    groups: [docker]
+
+write_files:
+  # Configuração de hardening do SSH
+  - path: /etc/ssh/sshd_config.d/99-hardening.conf
+    permissions: '0644'
+    content: |
+      # Desabilita login por root
+      PermitRootLogin no
+      
+      # Desabilita autenticação por senha (usa apenas chaves SSH)
+      PasswordAuthentication no
+      
+      # Desabilita autenticação vazia por senha
+      PermitEmptyPasswords no
+      
+      # Desabilita autenticação por GSSAPI (menos comum)
+      GSSAPIAuthentication no
+      
+      # Limita tentativas de login
+      MaxAuthTries 3
+      
+      # Tempo de login
+      LoginGraceTime 60
+      
+      # Usuários permitidos (apenas ubuntu)
+      AllowUsers ubuntu
+      
+      # Desabilita encaminhamento X11 (não necessário)
+      X11Forwarding no
+      
+      # Configurações de criptografia
+      KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256
+      Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+      MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+
+  # Configuração do fail2ban para SSH
+  - path: /etc/fail2ban/jail.local
+    permissions: '0644'
+    content: |
+      [DEFAULT]
+      # Rede interna da OCI (não banir tráfego interno)
+      ignoreip = 127.0.0.1/8 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+      bantime = 3600
+      findtime = 600
+      maxretry = 3
+      banaction = ufw
+      backend = systemd
+
+      [sshd]
+      enabled = true
+      port = ssh
+      filter = sshd
+      logpath = /var/log/auth.log
+      maxretry = 3
+
+      [sshd-ddos]
+      enabled = true
+      port = ssh
+      filter = sshd-ddos
+      logpath = /var/log/auth.log
+      maxretry = 5
+
+  # Configuração do UFW (firewall)
+  - path: /etc/ufw/ufw.conf
+    permissions: '0644'
+    content: |
+      # Configuração do UFW
+      IPV6=yes
+      DEFAULT_INPUT_POLICY="DROP"
+      DEFAULT_OUTPUT_POLICY="ACCEPT"
+      DEFAULT_FORWARD_POLICY="DROP"
+      DEFAULT_APPLICATION_POLICY="SKIP"
+      MANAGE_BUILTINS=no
+      IPT_SYSCTL=/etc/ufw/sysctl.conf
+      IPT_MODULES=""
+
+  # Script de inicialização que executa após o clone do repositório
+  - path: /opt/${project_name}/deploy.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+      cd /opt/${project_name}/projeto
+
+      # Verifica se há chave SSH configurada (segurança)
+      if [ ! -f /home/ubuntu/.ssh/authorized_keys ] || [ ! -s /home/ubuntu/.ssh/authorized_keys ]; then
+        echo "AVISO: Nenhuma chave SSH configurada. Configure uma chave pública via cloud-init ou OCI console."
+        echo "Para acesso emergencial, você precisará usar o console da OCI."
+      fi
+
+      # Gera o certificado TLS autoassinado (se não existir)
+      if [ ! -f nginx/certs/localhost.crt ]; then
+        echo "Gerando certificado TLS autoassinado..."
+        sh nginx/generate-certs.sh localhost
+      fi
+
+      # Cria o arquivo de ambiente Docker (usando valores padrão)
+      if [ ! -f .env.docker ]; then
+        echo "Criando .env.docker..."
+        cp .env.docker.example .env.docker
+        # Gera uma SECRET_KEY automaticamente
+        DJANGO_SECRET_KEY=$(python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
+        sed -i "s|^DJANGO_SECRET_KEY=.*|DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}|" .env.docker
+        echo "SECRET_KEY gerada automaticamente."
+      fi
+
+      # Inicia o stack Docker (web + nginx)
+      echo "Subindo os containers (docker compose)..."
+      docker compose up --build -d
+
+      # Log do estado
+      echo "Deploy concluído."
+      echo "O stack está rodando em:"
+      echo " - HTTP :80 redireciona para HTTPS"
+      echo " - HTTPS :443 (certificado autoassinado)"
+      echo " - Dashboard: https://$(curl -s ifconfig.me)/"
+      echo ""
+      echo "Configurações de segurança aplicadas:"
+      echo " - SSH: apenas chaves, root desabilitado, criptografia moderna"
+      echo " - UFW: firewall ativo (portas 22,80,443)"
+      echo " - fail2ban: proteção contra brute-force"
+      echo " - Atualizações automáticas de segurança ativadas"
+      echo ""
+      echo "Use 'docker compose logs -f' para acompanhar os logs."
+      echo "Use 'docker compose exec web python manage.py test' para rodar os testes."
+
+  # Unit do systemd para executar o deploy após o boot (opcional)
+  - path: /etc/systemd/system/${project_name}-deploy.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Deploy ${project_name} Django/Nginx
+      After=docker.service network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      WorkingDirectory=/opt/${project_name}/projeto
+      ExecStart=/opt/${project_name}/deploy.sh
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # --- SEGURANÇA: Configurações de hardening ---
+  
+  # Aplica configurações de hardening do SSH
+  - chmod 600 /etc/ssh/sshd_config.d/99-hardening.conf
+  
+  # Reinicia SSH com novas configurações
+  - systemctl restart sshd
+  
+  # Configura UFW (firewall)
+  - ufw --force enable
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp comment 'SSH'
+  - ufw allow 80/tcp comment 'HTTP'
+  - ufw allow 443/tcp comment 'HTTPS'
+  - ufw reload
+  
+  # Configura fail2ban
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+  
+  # Configura atualizações automáticas de segurança
+  - echo 'Unattended-Upgrade::Allowed-Origins {
+      "${distro_id}:${distro_codename}-security";
+      "${distro_id}:${distro_codename}-updates";
+    };' > /etc/apt/apt.conf.d/50unattended-upgrades
+    
+  - echo 'Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+    Unattended-Upgrade::MinimalSteps "true";
+    Unattended-Upgrade::Remove-Unused-Dependencies "true";
+    Unattended-Upgrade::Automatic-Reboot "false";
+    Unattended-Upgrade::Automatic-Reboot-Time "02:00";' >> /etc/apt/apt.conf.d/50unattended-upgrades
+  
+  - systemctl enable unattended-upgrades
+  - systemctl start unattended-upgrades
+  
+  # Desabilita serviços não essenciais
+  - systemctl disable avahi-daemon 2>/dev/null || true
+  - systemctl stop avahi-daemon 2>/dev/null || true
+  
+  # --- DEPLOY DA APLICAÇÃO ---
+  
+  # Clona o repositório
+  - mkdir -p /opt/${project_name}
+  - cd /opt/${project_name}
+  - git clone --branch ${git_branch} ${git_repo_url} projeto
+
+  # Habilita o serviço de deploy (opcional, para reinicializações)
+  - systemctl daemon-reload
+  - systemctl enable ${project_name}-deploy.service
+
+  # Executa o deploy agora (não espera o próximo boot)
+  - /opt/${project_name}/deploy.sh
+
+  # Adiciona o cron para limpeza periódica de containers/images antigos
+  - (crontab -l 2>/dev/null; echo "0 3 * * * /usr/bin/docker system prune -f --filter \"until=72h\"") | crontab -
+  
+  # Log de segurança aplicada
+  - echo "Configurações de segurança aplicadas: SSH hardening, UFW, fail2ban, atualizações automáticas" >> /var/log/cloud-init-output.log
+  
+  # Script de verificação periódica de segurança
+  - mkdir -p /opt/security_checks
+  - cat > /opt/security_checks/check_security.sh << 'EOF'
+#!/bin/bash
+# Script de verificação periódica de segurança
+LOG_FILE="/var/log/security_check.log"
+
+echo "$(date): Iniciando verificação de segurança" >> $LOG_FILE
+
+# Verifica se UFW está ativo
+if ! ufw status | grep -q "Status: active"; then
+    echo "$(date): ALERTA: UFW não está ativo" >> $LOG_FILE
+    ufw --force enable
+fi
+
+# Verifica se fail2ban está rodando
+if ! systemctl is-active --quiet fail2ban; then
+    echo "$(date): ALERTA: fail2ban não está rodando" >> $LOG_FILE
+    systemctl restart fail2ban
+fi
+
+# Verifica se há atualizações de segurança pendentes
+if apt list --upgradable 2>/dev/null | grep -q security; then
+    echo "$(date): ALERTA: Atualizações de segurança pendentes" >> $LOG_FILE
+    unattended-upgrade --dry-run
+fi
+
+# Verifica tentativas de login SSH falhas
+RECENT_FAILS=$(grep "Failed password" /var/log/auth.log | grep "$(date +'%b %d')" | wc -l)
+if [ $RECENT_FAILS -gt 10 ]; then
+    echo "$(date): ALERTA: $RECENT_FAILS tentativas de login SSH falhas hoje" >> $LOG_FILE
+fi
+
+# Verifica containers Docker
+RUNNING_CONTAINERS=$(docker ps -q | wc -l)
+if [ $RUNNING_CONTAINERS -lt 2 ]; then
+    echo "$(date): ALERTA: Menos de 2 containers Docker rodando" >> $LOG_FILE
+fi
+
+echo "$(date): Verificação de segurança concluída" >> $LOG_FILE
+EOF
+  
+  - chmod +x /opt/security_checks/check_security.sh
+  
+  # Adiciona cron para verificação diária
+  - (crontab -l 2>/dev/null; echo "0 2 * * * /opt/security_checks/check_security.sh") | crontab -
+

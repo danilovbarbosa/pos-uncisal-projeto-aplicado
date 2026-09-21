@@ -1,0 +1,19 @@
+# Estado do Terraform
+*.tfstate
+*.tfstate.*
+
+# Arquivos de lock do provider
+.terraform.lock.hcl
+
+# Diretório de plugins
+.terraform/
+
+# Variáveis sensíveis
+*.tfvars
+*.tfvars.example
+
+# Logs
+*.log
+
+# Backups
+backup/
