@@ -1,0 +1,80 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # Use Ubuntu 24.04 LTS (similar à OCI Ubuntu 24.04 ARM)
+  # Nota: Para ARM, precisaria de provider específico (libvirt, parallels)
+  # Para x86_64, usamos box padrão
+  config.vm.box = "ubuntu/jammy64"
+  config.vm.box_version = "20241010.0.0"
+  
+  # Nome da VM (similar ao OCI)
+  config.vm.hostname = "pos-uncisal-vagrant"
+  
+  # Configuração de rede - bridge para acesso externo
+  # Similar à OCI com IP público
+  # Usa auto-detecção da interface de bridge (mais compatível)
+  config.vm.network "public_network", type: "dhcp", bridge: "enp0s3"
+  
+  # Configuração de recursos (reduzido para 1 vCPU, 2GB RAM, 10GB disco - mais leve)
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "pos-uncisal-vagrant"
+    vb.gui = false
+    vb.memory = 2048  # 2GB RAM (reduzido de 8GB)
+    vb.cpus = 1       # 1 vCPU (reduzido de 2)
+    
+    # Configurações de performance otimizadas para recursos limitados
+    vb.customize ["modifyvm", :id, "--ioapic", "on"]
+    vb.customize ["modifyvm", :id, "--rtcuseutc", "on"]
+    vb.customize ["modifyvm", :id, "--graphicscontroller", "vmsvga"]
+    vb.customize ["modifyvm", :id, "--vram", "8"]      # Reduzido de 16MB
+    vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
+    vb.customize ["modifyvm", :id, "--nictype2", "virtio"]
+    vb.customize ["modifyvm", :id, "--audio", "none"]  # Desabilita áudio não necessário
+    vb.customize ["modifyvm", :id, "--usb", "off"]     # Desabilita USB não necessário
+    vb.customize ["modifyvm", :id, "--clipboard", "disabled"]  # Desabilita clipboard
+    vb.customize ["modifyvm", :id, "--draganddrop", "disabled"] # Desabilita drag-and-drop
+  end
+  
+  # Configuração de discos (reduzido para 10GB - suficiente para o projeto)
+  config.vm.disk :disk, size: "10GB", primary: true
+  
+  # Sincronização de pastas
+  # Sincroniza o projeto local para a VM (similar ao clone do Git)
+  config.vm.synced_folder "../../", "/opt/pos-uncisal/projeto", 
+    type: "rsync",
+    rsync__exclude: [".git/", ".venv/", "__pycache__/", "*.pyc", ".pytest_cache/", "node_modules/"],
+    rsync__args: ["--verbose", "--archive", "--delete", "-z"]
+  
+  # Provisionamento via shell (equivalente ao cloud-init da OCI)
+  config.vm.provision "shell", path: "scripts/resource_optimization.sh"
+  config.vm.provision "shell", path: "scripts/security_hardening.sh"
+  config.vm.provision "shell", path: "scripts/deploy_app.sh", run: "always"
+  
+  # Configurações extras
+  config.vm.post_up_message = <<-MESSAGE
+  ============================================================================
+  Vagrant VM provisionada com sucesso! (1 vCPU, 2GB RAM, 10GB disco)
+  
+  Acesse a aplicação em:
+    HTTP:  http://<IP_DA_VM>/
+    HTTPS: https://<IP_DA_VM>/  (certificado autoassinado - ignore o aviso)
+  
+  Para obter o IP da VM:
+    vagrant ssh -c "ip addr show eth1 2>/dev/null | grep 'inet ' | awk '{print \$2}' | cut -d/ -f1 || hostname -I | awk '{print \$1}'"
+  
+  Ou use: make vagrant-ip
+  
+  Credenciais de teste:
+    Usuário: aluno
+    Senha: SenhaForte2025!
+  
+  Comandos úteis:
+    make vagrant-ssh          # Acessar a VM
+    make vagrant-provision    # Reexecutar provisionamento
+    make vagrant-access       # Ver URLs de acesso
+    make vagrant-docker-test  # Rodar testes
+    make vagrant-destroy      # Destruir a VM
+  ============================================================================
+  MESSAGE
+end

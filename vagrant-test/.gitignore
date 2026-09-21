@@ -1,0 +1,31 @@
+# Vagrant
+.vagrant/
+*.box
+
+# VirtualBox
+*.vdi
+*.vmdk
+*.vbox
+*.vbox-prev
+
+# Logs
+*.log
+*.log.*
+
+# Configurações locais
+config/ssh/id_rsa
+config/ssh/id_rsa.pub
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema
+.DS_Store
+Thumbs.db
