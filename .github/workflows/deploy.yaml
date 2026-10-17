@@ -17,12 +17,13 @@ jobs:
           context: .
           push: true
           tags: |
-            meuusuario/app:${{ github.sha }}
-            meuusuario/app:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/projeto-pos-sec/:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/projeto-pos-sec/:latest
 
   deploy:
     needs: build-push
     runs-on: ubuntu-latest
+    environment: prd
     steps:
       - uses: appleboy/ssh-action@v1
         with:
