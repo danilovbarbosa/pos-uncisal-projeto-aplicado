@@ -17,8 +17,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/projeto-pos-sec/:${{ github.sha }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/projeto-pos-sec/:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/projeto-pos-sec:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/projeto-pos-sec:latest
 
   deploy:
     needs: build-push
