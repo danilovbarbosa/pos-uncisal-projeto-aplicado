@@ -4,7 +4,7 @@
 
 {% block content %}
   <h1>Acessar o portal</h1>
-  <p class="muted">Entre com suas credenciais para acessar a área interna. Testando 123.</p>
+  <p class="muted">Entre com suas credenciais para acessar a área interna.</p>
 
   {# OWASP A01:2025 — token CSRF obrigatório no formulário POST #}
   <form method="post" action="{% url 'accounts:login' %}" autocomplete="off" novalidate>
@@ -18,7 +18,7 @@
       </ul>
     {% endif %}
 
-    <label for="{{ form.username.id_for_label }}">Usuário Agora vai</label>
+    <label for="{{ form.username.id_for_label }}">Usuário</label>
     <input type="text"
            name="{{ form.username.html_name }}"
            id="{{ form.username.id_for_label }}"
