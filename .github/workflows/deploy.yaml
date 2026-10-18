@@ -32,7 +32,12 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ${{ secrets.PATH_APP }}
-            echo "APP_TAG=${{ github.sha }}" > .env
+            if grep -q '^APP_TAG=' .env; then
+              sed -i "s|^APP_TAG=.*|APP_TAG=${{ github.sha }}|" .env
+            else
+              [ -n "$(tail -c1 .env)" ] && echo >> .env
+              echo "APP_TAG=${{ github.sha }}" >> .env
+            fi
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f
