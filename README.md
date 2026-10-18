@@ -556,6 +556,20 @@ O projeto evoluiu para incluir recursos avançados de DevOps e segurança:
 
 ---
 
+## Licença
+
+Este projeto está licenciado sob a **Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)**.
+
+- ✅ Você **pode** visualizar, estudar e compartilhar o código com atribuição ao autor.
+- ❌ Você **não pode** fazer alterações e redistribuí-las sem autorização prévia.
+- ❌ Você **não pode** usar este projeto para fins comerciais sem autorização prévia.
+
+Para solicitar permissão de uso comercial ou para obras derivadas, entre em contato com o autor.
+
+Veja o arquivo [LICENSE](./LICENSE) para os termos completos.
+
+---
+
 ## Observações de produção
 
 Para implantar em produção, ajuste o `.env` (ou `.env.docker` no stack Docker):
